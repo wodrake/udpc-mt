@@ -1,0 +1,47 @@
+project_name: busi_mean_teacher_root
+mode: mean_teacher
+seed: 42
+device: cpu
+output_root: outputs/runs
+
+dataset:
+  name: busi
+  root: data/processed/busi
+  image_size: 256
+  val_fraction: 0.15
+  test_fraction: 0.15
+  labeled_fraction: 0.2
+  include_normal_as_unlabeled: true
+  num_workers: 0
+  sample_limit: null
+  task_type: binary
+  augmentation_profile: ultrasound
+  preprocessing:
+    normalization: minmax
+
+train:
+  epochs: 20
+  batch_size: 8
+  labeled_batch_size: 4
+  max_steps_per_epoch: null
+  lr: 0.001
+  weight_decay: 0.0001
+  ema_decay: 0.99
+  unsupervised_weight: 1.0
+  log_interval: 10
+  save_best_metric: dice
+
+model:
+  in_channels: 1
+  num_classes: 1
+  base_channels: 32
+  dropout: 0.2
+
+loss:
+  bce_weight: 0.5
+  dice_weight: 0.5
+
+uncertainty:
+  enabled: true
+  mc_passes: 4
+  threshold: 0.35

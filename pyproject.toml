@@ -1,0 +1,26 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "udpc-mt"
+version = "0.1.0"
+description = "PyTorch semi-supervised BUSI segmentation with UDPC-MT."
+readme = "README.md"
+requires-python = ">=3.10"
+authors = [{name = "OpenAI Codex"}]
+dependencies = [
+  "torch",
+  "torchvision",
+  "numpy",
+  "Pillow",
+  "PyYAML",
+  "tqdm",
+  "huggingface_hub",
+  "albumentations",
+  "opencv-python-headless",
+  "nibabel",
+]
+
+[tool.setuptools.packages.find]
+include = ["udpc_mt*", "datasets*", "models*", "losses*", "utils*", "trainers*"]

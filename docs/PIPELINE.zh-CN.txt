@@ -1,0 +1,145 @@
+• 总览
+
+  训练主链路是：
+
+  config -> train.py -> 选择训练模式 -> 构建 dataloader
+         -> 构建 model / student / teacher / prototype memory
+         -> 按 epoch 训练
+         -> 每个 epoch 做 val
+         -> 保存 best / last checkpoint
+         -> 用 best checkpoint 跑 test
+         -> 写 summary/history/log
+
+  入口在 /home/jett/code/udpc-mt/train.py。
+  数据在 /home/jett/code/udpc-mt/datasets/busi.py。
+  baseline / mean_teacher 训练器在 /home/jett/code/udpc-mt/trainers/trainer.py。
+  完整 udpc_mt 训练器在 /home/jett/code/udpc-mt/udpc_mt/engine/trainer.py。
+
+  模块怎么串起来
+
+  - 配置层
+      - train.py 先读 YAML，或从 --resume 的 checkpoint 里恢复配置。
+      - 然后按 config["mode"] 分发：
+          - baseline
+          - mean_teacher
+          - udpc_mt
+  - 数据层
+      - /home/jett/code/udpc-mt/datasets/busi.py 负责：
+          - 读 BUSI manifest
+          - 切 train/val/test
+          - 再把 train 切成 labeled/unlabeled
+      - labeled batch 返回 image + mask
+      - unlabeled batch 返回：
+          - teacher_image，weak augmentation
+          - student_image，strong augmentation
+      - 划分逻辑在 /home/jett/code/udpc-mt/datasets/semi_split.py
+      - 增强在 /home/jett/code/udpc-mt/datasets/transforms.py
+  - 模型层
+      - root-level baseline/MT 用 /home/jett/code/udpc-mt/models/unet.py，输出只有 logits
+      - udpc_mt 用 /home/jett/code/udpc-mt/udpc_mt/models/unet.py，输出：
+          - logits
+          - embeddings
+      - teacher EMA 逻辑在 /home/jett/code/udpc-mt/models/ema_teacher.py
+      - prototype memory 在 /home/jett/code/udpc-mt/models/prototype_memory.py
+  - 损失层
+      - 监督分割损失： /home/jett/code/udpc-mt/losses/supervised.py
+      - pixel consistency： /home/jett/code/udpc-mt/losses/consistency.py
+      - prototype contrastive： /home/jett/code/udpc-mt/losses/prototype.py
+      - 总 loss 汇总： /home/jett/code/udpc-mt/losses/total_loss.py
+  - 工具层
+      - uncertainty 估计： /home/jett/code/udpc-mt/utils/uncertainty.py
+      - checkpoint： /home/jett/code/udpc-mt/utils/checkpoint.py
+      - metrics： /home/jett/code/udpc-mt/utils/metrics.py
+
+  三种训练模式的区别
+
+  - baseline
+      - 只吃 labeled data
+      - image -> model -> supervised loss(BCE + Dice) -> backward
+      - 没有 teacher，没有 consistency，没有 prototype
+  - mean_teacher
+      - labeled 分支：
+          - labeled_image -> student -> supervised loss
+      - unlabeled 分支：
+          - teacher_image(weak) -> teacher
+          - student_image(strong) -> student
+          - teacher 预测作为 target
+          - low-uncertainty 区域上做 masked MSE consistency
+      - 每步更新完 student 后，再用 EMA 更新 teacher
+  - udpc_mt
+      - 保留 mean teacher 的 supervised + consistency 主干
+      - 再加两块：
+          - uncertainty
+              - teacher 做 MC Dropout 多次前向
+              - 得到 uncertainty_map
+              - 切成 low_uncertainty_mask / high_uncertainty_mask
+          - prototype branch
+              - low uncertainty 区域：做 pixel consistency
+              - high uncertainty 区域：不做普通 pixel consistency
+              - high uncertainty 区域上的 student pixel embedding 去和 class prototypes 做 contrastive loss
+              - teacher features 再去更新 prototype memory
+
+  udpc_mt 一步训练里实际发生什么
+
+  在 /home/jett/code/udpc-mt/udpc_mt/engine/trainer.py 里，一步大致是：
+
+  1. 取一批 labeled 和一批 unlabeled
+  2. student(labeled_images) 算 supervised segmentation loss
+  3. student(student_images) 得到 unlabeled student logits 和 embeddings
+  4. teacher(teacher_images) 做 MC Dropout
+  5. 由 teacher 均值概率生成：
+      - pseudo mask
+      - uncertainty map
+      - low/high uncertainty mask
+  6. low uncertainty 区域上算 masked MSE consistency
+  7. high uncertainty 区域上算 pixel-to-prototype contrastive loss
+  8. 用 compose_total_loss 拼成：
+      - total = supervised + weighted consistency + weighted prototype
+  9. backward + optimizer.step()
+  10. EMA update teacher
+  11. 用 teacher features + GT/pseudo mask 更新 prototype memory
+  12. 记录日志和指标
+
+  prototype memory 怎么接进来
+
+  prototype memory 的角色是“全局类原型缓存”。
+
+  - 类别固定 2 类：
+      - background
+      - lesion
+  - teacher feature 用来更新 memory
+  - labeled 样本用 GT mask 更新
+  - unlabeled 样本用 pseudo mask 更新
+  - 默认只用 low uncertainty 区域更新 unlabeled prototype
+  - student 的 high uncertainty pixel features 再和这些 prototypes 做 contrastive
+
+  所以它是这条链：
+
+  teacher embeddings -> prototype memory update
+  student high-uncertainty embeddings -> prototype contrastive loss
+
+  epoch 结束后做什么
+
+  每个 epoch 结束后训练器都会：
+
+  - 在 val 上评估
+  - 更新 history.json
+  - 保存：
+      - checkpoints/best.pt
+      - checkpoints/last.pt
+  - 训练结束后再加载 best.pt
+  - 在 test 上跑一次
+  - 写 summary.json 和 train.log
+
+  输出目录格式已经固定在 outputs/runs/<run_name>/。
+
+  你可以把整个项目理解成
+
+  - /home/jett/code/udpc-mt/train.py：总调度
+  - /home/jett/code/udpc-mt/datasets/busi.py：把 BUSI 变成训练 batch
+  - /home/jett/code/udpc-mt/trainers/trainer.py：监督版和 Mean Teacher 版训练循环
+  - /home/jett/code/udpc-mt/udpc_mt/engine/trainer.py：完整 UDPC-MT 训练循环
+  - /home/jett/code/udpc-mt/utils/uncertainty.py：把 teacher 预测切成低/高不确定区域
+  - /home/jett/code/udpc-mt/models/prototype_memory.py：维护全局类原型
+  - /home/jett/code/udpc-mt/losses/prototype.py：高不确定区域的 prototype contrastive loss
+

@@ -1,0 +1,74 @@
+project_name: tn3k_udpc_mt_tuned
+mode: udpc_mt
+seed: 42
+device: cuda:1
+output_root: outputs/runs
+
+dataset:
+  name: tn3k
+  root: data/processed/tn3k
+  image_size: 256
+  val_fraction: 0.0
+  test_fraction: 0.0
+  labeled_fraction: 0.2
+  num_workers: 4
+  sample_limit: null
+  split_source: official
+  task_type: binary
+  num_classes: 2
+  input_channels: 1
+  dimension_mode: 2d
+  slice_mode: single_slice
+  class_names: [background, lesion]
+  augmentation_profile: ultrasound
+  mask_threshold: 128
+  preprocessing:
+    normalization: minmax
+
+train:
+  epochs: 80
+  batch_size: 8
+  labeled_batch_size: 4
+  max_steps_per_epoch: null
+  lr: 0.001
+  weight_decay: 0.0001
+  ema_decay: 0.995
+  rampup_epochs: 20
+  log_interval: 10
+  save_best_metric: dice
+
+model:
+  in_channels: 1
+  num_classes: 1
+  base_channels: 32
+  prototype_dim: 64
+  dropout: 0.2
+
+loss:
+  bce_weight: 0.5
+  dice_weight: 0.5
+  consistency_weight: 1.0
+  prototype_weight: 0.08
+
+uncertainty:
+  enabled: true
+  mc_passes: 8
+  threshold: 0.2
+
+prototype:
+  enabled: true
+  num_classes: 2
+  feature_source: decoder_head
+  init_strategy: first_valid_batch
+  normalize: true
+  temperature: 0.1
+  momentum: 0.95
+  min_pixels: 32
+
+evaluation:
+  metrics: [dice, iou, precision, recall, specificity]
+
+wandb:
+  enabled: true
+  project: udpc-mt
+  tags: [tn3k, tuned, udpc_mt]

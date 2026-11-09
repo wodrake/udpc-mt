@@ -1,0 +1,63 @@
+project_name: busi_udpc_mt
+mode: udpc_mt
+seed: 42
+device: cpu
+output_root: outputs/runs
+
+dataset:
+  name: busi
+  root: data/processed/busi
+  image_size: 256
+  val_fraction: 0.15
+  test_fraction: 0.15
+  labeled_fraction: 0.2
+  include_normal_as_unlabeled: true
+  num_workers: 0
+  sample_limit: null
+  task_type: binary
+  augmentation_profile: ultrasound
+  preprocessing:
+    normalization: minmax
+
+train:
+  epochs: 30
+  batch_size: 8
+  labeled_batch_size: 4
+  max_steps_per_epoch: null
+  lr: 0.001
+  weight_decay: 0.0001
+  ema_decay: 0.99
+  rampup_epochs: 8
+  log_interval: 10
+  save_best_metric: dice
+
+model:
+  in_channels: 1
+  num_classes: 1
+  base_channels: 32
+  prototype_dim: 64
+  dropout: 0.2
+
+loss:
+  bce_weight: 0.5
+  dice_weight: 0.5
+  consistency_weight: 1.0
+  prototype_weight: 0.15
+
+uncertainty:
+  enabled: true
+  mc_passes: 4
+  threshold: 0.35
+
+prototype:
+  enabled: true
+  num_classes: 2
+  feature_source: decoder_head
+  init_strategy: first_valid_batch
+  normalize: true
+  temperature: 0.1
+  momentum: 0.95
+  min_pixels: 32
+
+evaluation:
+  metrics: [dice, iou, precision, recall, specificity]

@@ -1,0 +1,91 @@
+project_name: laa2_udpcmt_ratio20_do015_t008_0418d
+mode: udpc_mt
+seed: 42
+device: cuda:3
+output_root: outputs/runs
+
+dataset:
+  name: busi
+  root: /data1/houshengdi/udpc-mt/data/processed/us_busi_like/laa2
+  image_size: 256
+  val_fraction: 0.0
+  test_fraction: 0.0
+  labeled_fraction: 0.2
+  include_normal_as_unlabeled: false
+  num_workers: 4
+  sample_limit: null
+  split_source: official
+  split_files:
+    labeled: /data1/houshengdi/udpc-mt/data/processed/us_busi_like/laa2/splits/ratio_20/labeled.txt
+    unlabeled: /data1/houshengdi/udpc-mt/data/processed/us_busi_like/laa2/splits/ratio_20/unlabeled.txt
+    val: /data1/houshengdi/udpc-mt/data/processed/us_busi_like/laa2/splits/ratio_20/val.txt
+    test: /data1/houshengdi/udpc-mt/data/processed/us_busi_like/laa2/splits/ratio_20/test.txt
+  task_type: binary
+  num_classes: 2
+  input_channels: 1
+  dimension_mode: 2d
+  slice_mode: single_slice
+  class_names:
+  - background
+  - lesion
+  augmentation_profile: ultrasound
+  preprocessing:
+    normalization: minmax
+
+train:
+  epochs: 200
+  batch_size: 4
+  labeled_batch_size: 2
+  max_steps_per_epoch: null
+  lr: 0.001
+  weight_decay: 0.0001
+  ema_decay: 0.995
+  rampup_epochs: 12
+  log_interval: 10
+  save_best_metric: dice
+
+model:
+  in_channels: 1
+  num_classes: 1
+  base_channels: 32
+  prototype_dim: 64
+  dropout: 0.15
+
+loss:
+  bce_weight: 0.5
+  dice_weight: 0.5
+  consistency_weight: 1.0
+  prototype_weight: 0.12
+
+uncertainty:
+  enabled: true
+  mc_passes: 8
+  threshold: 0.30
+
+prototype:
+  enabled: true
+  num_classes: 2
+  feature_source: decoder_head
+  init_strategy: first_valid_batch
+  normalize: true
+  temperature: 0.08
+  momentum: 0.95
+  min_pixels: 32
+
+evaluation:
+  metrics:
+  - dice
+  - iou
+  - precision
+  - recall
+  - specificity
+
+wandb:
+  enabled: true
+  project: udpc-mt
+  tags:
+  - laa2
+  - ratio20
+  - search0418
+  - udpc_mt
+  - representation_tune

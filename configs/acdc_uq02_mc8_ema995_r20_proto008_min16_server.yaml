@@ -1,0 +1,74 @@
+project_name: acdc_uq02_mc8_ema995_r20_proto008_min16
+mode: udpc_mt
+seed: 4
+device: cuda:3
+output_root: outputs/runs
+
+dataset:
+  name: acdc
+  root: data/processed/acdc
+  image_size: 256
+  val_fraction: 0.1
+  test_fraction: 0.1
+  labeled_fraction: 0.2
+  num_workers: 0
+  sample_limit: null
+  split_source: internal
+  task_type: multiclass
+  num_classes: 4
+  input_channels: 1
+  dimension_mode: 2d
+  slice_mode: single_slice
+  class_names: [background, rv, myocardium, lv]
+  augmentation_profile: mri
+  preprocessing:
+    normalization: minmax
+    clip_percentiles: [1.0, 99.0]
+
+train:
+  epochs: 200
+  batch_size: 8
+  labeled_batch_size: 4
+  max_steps_per_epoch: null
+  lr: 0.001
+  weight_decay: 0.0001
+  ema_decay: 0.995
+  rampup_epochs: 20
+  log_interval: 10
+  save_best_metric: dice
+
+model:
+  in_channels: 1
+  num_classes: 4
+  base_channels: 32
+  prototype_dim: 64
+  dropout: 0.2
+
+loss:
+  bce_weight: 0.5
+  dice_weight: 0.5
+  consistency_weight: 1.0
+  prototype_weight: 0.08
+
+uncertainty:
+  enabled: true
+  mc_passes: 8
+  threshold: 0.2
+
+prototype:
+  enabled: true
+  num_classes: 4
+  feature_source: decoder_head
+  init_strategy: first_valid_batch
+  normalize: true
+  temperature: 0.1
+  momentum: 0.95
+  min_pixels: 16
+
+evaluation:
+  metrics: [dice, iou, precision, recall, specificity]
+
+wandb:
+  enabled: true
+  project: udpc-mt
+  tags: [acdc, tuned, min16, ema995, r20, proto008]

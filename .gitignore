@@ -1,0 +1,66 @@
+# --- Python ---
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+*.egg-info/
+.eggs/
+build/
+dist/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+
+# --- Virtual environments ---
+.venv/
+venv/
+env/
+
+# --- Datasets and archives ---
+/data/
+/US_Datasets/
+*.zip
+*.tar
+*.tar.gz
+*.tgz
+*.nii
+*.nii.gz
+*.npy
+*.npz
+*.h5
+
+# --- Training artifacts ---
+/outputs/
+/runs/
+/predictions/
+/wandb/
+*.pt
+*.pth
+*.ckpt
+*.onnx
+*.log
+
+# --- Editors and OS ---
+.vscode/
+.idea/
+*.swp
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# --- Local / private notes (not published) ---
+服务器.md
+AGENTS.md
+SESSION_SUMMARY.md
+/docs/SESSION_SUMMARY.md
+get-pip.py
+
+# --- Experiment results and internal tracking (never published) ---
+/results/
+*_COMPARISON_TABLE.md
+*_COMPARISON_TABLE.csv
+*_EXPERIMENTS.md
+/laa2_coeff_sweep_0420/LAA2_COEFFICIENT_SWEEP_0420.md
+/docs/TODO.md
